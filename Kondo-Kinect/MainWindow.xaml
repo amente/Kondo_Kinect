@@ -1,29 +1,13 @@
 ﻿<Window x:Class="Kondo_Kinect.MainWindow"
-       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Kondo++" 
-        Height="600" Width="700" 
-        Loaded="MainWindow_Loaded"
-        Closing="MainWindow_Closing">
-    <Window.Resources>
-        <SolidColorBrush x:Key="MediumGreyBrush" Color="#ff6e6e6e" />
-        <SolidColorBrush x:Key="KinectPurpleBrush" Color="#ff52318f" />
-        <SolidColorBrush x:Key="KinectBlueBrush" Color="#ff00BCF2" />
-    </Window.Resources>
-    <Grid Margin="10 0 10 0">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Image Grid.Row="0" Source="Images\Status.png" Stretch="None" HorizontalAlignment="Center" Margin="0 0 0 5" />
+        Title="Kondo++" Height="142" Width="380" Loaded="Window_Loaded">
+    <Grid>
+        <Button x:Name="btnOpenKinectControl" Content="Open Kinect Control" HorizontalAlignment="Left" Margin="211,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenKinectControl_Click" IsEnabled="False"/>
+        <Button x:Name="btnOpenManualControl" Content="Open Manual Control" HorizontalAlignment="Left" Margin="20,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenManualControl_Click" IsEnabled="False"/>
+        <Label Content="Connect to Robot:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
+        <ComboBox x:Name="cmbSerialPort" HorizontalAlignment="Left" Margin="132,14,0,0" VerticalAlignment="Top" Width="65" ContextMenuOpening="cmbSerialPort_ContextMenuOpening"/>
+        <Button x:Name="btnConnect" Content="Connect" HorizontalAlignment="Left" Margin="223,14,0,0" VerticalAlignment="Top" Width="88" Height="22" Click="btnConnect_Click"/>
 
-        <Viewbox Grid.Row="1" HorizontalAlignment="Center">
-            <Image Source="{Binding ImageSource}" Stretch="UniformToFill" />
-        </Viewbox>
-
-        <StatusBar Grid.Row="2" HorizontalAlignment="Stretch" Name="statusBar" VerticalAlignment="Bottom" Background="White" Foreground="{StaticResource MediumGreyBrush}">
-            <StatusBarItem Content="{Binding StatusText}" />
-        </StatusBar>
     </Grid>
 </Window>

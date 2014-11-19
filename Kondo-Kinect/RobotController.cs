@@ -17,6 +17,7 @@ namespace Kondo_Kinect
     class RobotController
     {
         private KinectController kinectController;
+        private CommandSender commandSender;
 
         private bool isTracking = false;
 
@@ -69,16 +70,20 @@ namespace Kondo_Kinect
             }
         }
 
+        /// <summary>
+        /// Constructor for the singleton class
+        /// </summary>
         public RobotController()
         {
             this.kinectController = KinectController.Instance;
+            this.commandSender = CommandSender.Instance;
             this.isTracking = false;
             defineJoints();
         }
 
         private static RobotController robotController;
 
-        // Used for sysnchronizing singlton instance during instantiation
+        // Used for sysnchronizing singleton instance during instantiation
         private static object syncRoot = new Object();
 
         /// <summary>
@@ -174,6 +179,7 @@ namespace Kondo_Kinect
                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
             }
 
+            //If both hands are closed, then calculate angles and send commands to the robot
             if (body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed)
             {
 

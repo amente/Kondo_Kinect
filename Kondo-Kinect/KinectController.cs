@@ -299,6 +299,9 @@ namespace Kondo_Kinect
             }
         }
 
+        /// <summary>
+        /// Closes the controller
+        /// </summary>
         public void Close(){
             this.kinectSensor.Close();
         }
