@@ -39,19 +39,32 @@ namespace Kondo_Kinect
         {
             if (kinectControlWindow == null)
             {
-                kinectControlWindow = new KinectControlWindow();                
+                kinectControlWindow = new KinectControlWindow();
+                kinectControlWindow.Closed += KinectControlWindowClosed;
             }
             kinectControlWindow.Show();
         }
+
+        private void KinectControlWindowClosed(object sender, EventArgs e)
+        {
+            this.kinectControlWindow = null;
+        }
+
+
 
         private void btnOpenManualControl_Click(object sender, RoutedEventArgs e)
         {
             if (manualControlWindow == null)
             {
                 manualControlWindow = new ManualControlWindow();
-                manualControlWindow.Show();
+                manualControlWindow.Closed += manualControlWindowClosed;
             }
             manualControlWindow.Show();
+        }
+
+        private void manualControlWindowClosed(object sender, EventArgs e)
+        {
+            this.manualControlWindow = null;
         }
 
 
@@ -61,18 +74,21 @@ namespace Kondo_Kinect
             if (comPorts.Length != 0)
             {
                 this.cmbSerialPort.Items.Clear();
-                this.cmbSerialPort.Items.Add(comPorts);
+                foreach (string comPort in comPorts)
+                {
+                    this.cmbSerialPort.Items.Add(comPort);
+                }
+               
             }
             else
             {
-                this.cmbSerialPort.Items.Add("<N/A>");
+                if (!cmbSerialPort.Items.Contains("<N/A>"))
+                {
+                    this.cmbSerialPort.Items.Add("<N/A>");
+
+                }
             }
             this.cmbSerialPort.SelectedIndex = 0;
-        }
-
-        private void cmbSerialPort_ContextMenuOpening(object sender, ContextMenuEventArgs e)
-        {
-            refreshComPorts();
         }
 
         private void btnConnect_Click(object sender, RoutedEventArgs e)
@@ -117,6 +133,17 @@ namespace Kondo_Kinect
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.commandSender.SerialPortStatusChanged += serialPortStatusChanged;
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            KinectController.Instance.Close();
+            CommandSender.Instance.closeSerialPort();
+        }
+
+        private void cmbSerialPort_DropDownOpened(object sender, EventArgs e)
+        {
+            refreshComPorts();
         }
 
 

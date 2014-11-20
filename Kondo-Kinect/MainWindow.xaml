@@ -1,12 +1,12 @@
 ﻿<Window x:Class="Kondo_Kinect.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Kondo++" Height="142" Width="380" Loaded="Window_Loaded">
+        Title="Kondo++" Height="142" Width="380" Loaded="Window_Loaded" Closing="Window_Closing">
     <Grid>
         <Button x:Name="btnOpenKinectControl" Content="Open Kinect Control" HorizontalAlignment="Left" Margin="211,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenKinectControl_Click" IsEnabled="False"/>
         <Button x:Name="btnOpenManualControl" Content="Open Manual Control" HorizontalAlignment="Left" Margin="20,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenManualControl_Click" IsEnabled="False"/>
         <Label Content="Connect to Robot:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
-        <ComboBox x:Name="cmbSerialPort" HorizontalAlignment="Left" Margin="132,14,0,0" VerticalAlignment="Top" Width="65" ContextMenuOpening="cmbSerialPort_ContextMenuOpening"/>
+        <ComboBox x:Name="cmbSerialPort" HorizontalAlignment="Left" Margin="132,14,0,0" VerticalAlignment="Top" Width="65" DropDownOpened="cmbSerialPort_DropDownOpened"/>
         <Button x:Name="btnConnect" Content="Connect" HorizontalAlignment="Left" Margin="223,14,0,0" VerticalAlignment="Top" Width="88" Height="22" Click="btnConnect_Click"/>
 
     </Grid>

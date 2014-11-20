@@ -366,7 +366,7 @@ namespace Kondo_Kinect
         /// <param name="e">event arguments</param>
         private void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            this.kinectController.Close();
+           
         }
 
     }

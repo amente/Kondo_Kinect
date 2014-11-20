@@ -4,28 +4,66 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 
 namespace Kondo_Kinect
 {
-    public delegate void cmdResponseAvailableHandler(byte[] response);
+   // public delegate void cmdResponseAvailableHandler(CommandResponse response);
     public delegate void serialPortStatusChangedHandler(bool isOpen);
 
+
+    class CommandResponse
+    {
+        public CommandResponse()
+        {
+
+        }
+
+        public static CommandResponse TimeoutResponse { get; set; }
+    }
+
+
+    
     class Command
     {
 
-        public static byte[] moveServo(byte channelNumber, int value)
+        int responseLength;
+        byte[] bytes;
+        bool expectsAnswer;
+
+
+        public Command(int responseLength, byte[] bytes,bool expectsAnswer)
         {
-            byte[] cmd = new byte[] { 0xFE, 0x00, 0x00, 0x01, 0, 0, 0 };
-            //byte sum = 0;
-            cmd[2] = channelNumber;
-            cmd[5] = (byte)(value + 0x4000);
-            cmd[4] = (byte)((value + 0x4000) >> 8);
-            for (int i = 0; i < cmd.Length - 1; i++)
-            {
-                cmd[6] += cmd[i];
-            }
-            return cmd;
+            this.responseLength = responseLength;
+            this.bytes = bytes;
+            this.expectsAnswer = false;
         }
+
+
+        public byte[] Bytes
+        {
+            get
+            {
+                return bytes;
+            }
+        }
+
+        public int ResponseLength
+        {
+            get
+            {
+                return responseLength;
+            }
+        }
+
+        public CommandResponse parse(StringBuilder responseString)
+        {
+            return new CommandResponse();
+        }
+
+       
+
+        public bool ExpectsAnswer { get; set; }
     }
 
 
@@ -34,15 +72,20 @@ namespace Kondo_Kinect
         private static volatile CommandSender sender;
         private static object syncRoot = new Object();
 
-        private SerialPort serialPort;
+        // Timer used for properly timing out ACK waits 
+        private static Timer timer;
+        private static int ACK_TIMEOUT = 3000;
 
-        public event cmdResponseAvailableHandler CmdResponseAvailable;
+        private static SerialPort serialPort;
+
+        //public  event cmdResponseAvailableHandler CmdResponseAvailable;
         public event serialPortStatusChangedHandler SerialPortStatusChanged;
 
        
         private CommandSender() {
-            serialPort = new SerialPort();
-            serialPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+            serialPort = new SerialPort();          
+            timer = new Timer(ACK_TIMEOUT);
+            timer.AutoReset = false;
         }
 
         public static CommandSender Instance
@@ -60,20 +103,6 @@ namespace Kondo_Kinect
                 return sender;
             }
         }
-
-
-        private void DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
-        {
-            if (!serialPort.IsOpen)
-            {
-                return;
-            }            
-            byte[] smallBuffer = new byte[serialPort.BytesToRead];
-            int recvBytes = serialPort.Read(smallBuffer, 0, smallBuffer.Length);
-            OnCmdResponseAvaialbe(smallBuffer);
-            Console.WriteLine(BitConverter.ToString(smallBuffer).Replace("-", string.Empty));
-        }
-
 
         private void OnSerialPortStatusChanged(bool isOpen)
         {
@@ -113,29 +142,56 @@ namespace Kondo_Kinect
             return false;
         }
 
-        private void OnCmdResponseAvaialbe(byte[] response)
+       /* private static void OnCmdResponseAvailable(CommandResponse response)
         {
             if (CmdResponseAvailable != null)
             {
                 CmdResponseAvailable(response);
             }
-        }
+        }*/
 
-        public void Send(byte[] cmd)
+        public static void Send(Command cmd)
         {
-            bool gotAck = false;
-            cmdResponseAvailableHandler handler = delegate(byte[] r)
+            if (!serialPort.IsOpen) { return; }
+            
+            bool gotAnswer = false;
+            StringBuilder responseString = new StringBuilder();
+            SerialDataReceivedEventHandler handler = delegate(object sender, SerialDataReceivedEventArgs e)
             {
-                if (r[0] == 0x0D)
+                if (!serialPort.IsOpen) { return; }
+
+                byte[] smallBuffer = new byte[serialPort.BytesToRead];
+                int recvBytes = serialPort.Read(smallBuffer, 0, smallBuffer.Length);
+                responseString.Append(BitConverter.ToString(smallBuffer).Replace("-", string.Empty));
+                if (responseString.Length >= cmd.ResponseLength)
                 {
-                    gotAck = true;
+                    CommandResponse response = cmd.parse(responseString);
+                    if(response!=null){
+                        gotAnswer = true;
+                        //OnCmdResponseAvailable(response);
+                    }
                 }
+                
             };
-            CmdResponseAvailable += handler;
-            serialPort.Write(new byte[] { 0x0D }, 0, 1);
-            while (!gotAck) ;
-            serialPort.Write(cmd, 0, cmd.Length);
-            CmdResponseAvailable -= handler;
+
+            ElapsedEventHandler ackTimoutHandler  = delegate(Object source,ElapsedEventArgs e){
+                gotAnswer = true;
+                //OnCmdResponseAvailable(CommandResponse.TimeoutResponse);
+            };
+
+          
+            timer.Elapsed += ackTimoutHandler;
+            serialPort.DataReceived += handler;           
+            byte[] cmdBytes = cmd.Bytes;              
+            serialPort.Write(cmdBytes, 0, cmdBytes.Length);
+            timer.Start();
+            if (cmd.ExpectsAnswer)
+            {
+                while (!gotAnswer) ;
+            }
+            serialPort.DataReceived -= handler;
+            timer.Elapsed -= ackTimoutHandler;
+            
         }
 
         public bool serialPortIsOPen()

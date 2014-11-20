@@ -30,12 +30,56 @@ namespace Kondo_Kinect
         {
             private JointType j1, j2, j3;
             private string name;
+            private int channel;
 
-            public RobotJoint(string name,JointType j1,JointType j2,JointType j3){
+            private int jointMin = 0;
+            private int jointMax = 90;
+
+            private int totalDegrees = 90;
+
+
+            public RobotJoint(string name,JointType j1,JointType j2,JointType j3,int channel){
                 this.j1 = j1;
                 this.j2 = j2;
                 this.j3 = j3;
                 this.name = name;
+                this.channel = channel;
+            }
+
+            public int TotalDegrees
+            {
+                get
+                {
+                    return totalDegrees;
+                }
+                set
+                {
+                    this.totalDegrees = value;
+                }
+            }
+
+            public int JointMin
+            {
+                get
+                {
+                    return jointMin;
+                }
+                set
+                {
+                    this.jointMin = value;
+                }
+            }
+
+            public int JointMax
+            {
+                get
+                {
+                    return jointMax;
+                }
+                set
+                {
+                    this.jointMax = value;
+                }
             }
 
             public string Name
@@ -68,6 +112,13 @@ namespace Kondo_Kinect
                     return j3;
                 }
             }
+            public int Channel
+            {
+                get
+                {
+                    return channel;
+                }
+            }
         }
 
         /// <summary>
@@ -78,7 +129,17 @@ namespace Kondo_Kinect
             this.kinectController = KinectController.Instance;
             this.commandSender = CommandSender.Instance;
             this.isTracking = false;
+            this.commandSender.SerialPortStatusChanged += serialPortStatusChanged;
             defineJoints();
+        }
+
+        private void serialPortStatusChanged(bool isOpen)
+        {
+            if(isOpen){
+                start();
+            }else{
+                stop();
+            }
         }
 
         private static RobotController robotController;
@@ -114,16 +175,34 @@ namespace Kondo_Kinect
             this.robotJoints = new List<RobotJoint>();
             
             // Right Arm
-            this.robotJoints.Add(new RobotJoint("Right Arm",JointType.ShoulderRight, JointType.ElbowRight,JointType.WristRight));
+            RobotJoint rightArmJoint = new RobotJoint("Right Arm",JointType.ShoulderRight, JointType.ElbowRight,JointType.WristRight,1);
+            rightArmJoint.JointMin = -25;
+            rightArmJoint.JointMax = 60;
+            rightArmJoint.TotalDegrees = 180;
+            this.robotJoints.Add(rightArmJoint);
+           
 
             // Right Sholder
-            this.robotJoints.Add(new RobotJoint("Right Sholder", JointType.SpineShoulder, JointType.ShoulderRight, JointType.ElbowRight));
+            RobotJoint rightShoulderJoint = new RobotJoint("Right Sholder", JointType.SpineShoulder, JointType.ShoulderRight, JointType.ElbowRight, 2);
+            rightShoulderJoint.JointMin = -25;
+            rightShoulderJoint.JointMax = 25;
+            rightShoulderJoint.TotalDegrees = 180;
+            this.robotJoints.Add(rightShoulderJoint);
+            
            
             // Left Arm
-            this.robotJoints.Add(new RobotJoint("Left Arm",JointType.ShoulderLeft, JointType.ElbowLeft,JointType.WristLeft));
+            RobotJoint leftArmJoint = new RobotJoint("Left Arm", JointType.ShoulderLeft, JointType.ElbowLeft, JointType.WristLeft, 16);
+            leftArmJoint.JointMin = -60;
+            leftArmJoint.JointMax = 25;
+            leftArmJoint.TotalDegrees = 180;
+            this.robotJoints.Add(leftArmJoint);
 
             // Left Sholder
-            this.robotJoints.Add(new RobotJoint("Left Sholder", JointType.SpineShoulder, JointType.ShoulderLeft, JointType.ElbowLeft));
+            RobotJoint leftShoudlerJoint = new RobotJoint("Left Sholder", JointType.SpineShoulder, JointType.ShoulderLeft, JointType.ElbowLeft, 15);
+            leftShoudlerJoint.JointMin = -25;
+            leftShoudlerJoint.JointMax = 25;
+            leftShoudlerJoint.TotalDegrees = 180;
+            this.robotJoints.Add(leftShoudlerJoint);           
             
         }
 
@@ -185,10 +264,36 @@ namespace Kondo_Kinect
 
                 foreach (RobotJoint robotJoint in robotJoints)
                 {
-                    Console.Write(robotJoint.Name + "  :");
-                    Console.WriteLine(calculateAngle(jointPoints[robotJoint.J1], jointPoints[robotJoint.J2], jointPoints[robotJoint.J3]));
+                        int angle = Convert.ToInt16(calculateAngle(jointPoints[robotJoint.J1], jointPoints[robotJoint.J2], jointPoints[robotJoint.J3]));
+                        setServoAngle(robotJoint, angle);                          
                 }
             }
+        }
+
+        private void setServoAngle(RobotJoint joint,int angle){
+            Console.Write(joint.Name + "  :");
+            Console.Write(" Raw: " + angle);
+            int channel = joint.Channel;
+            if (angle < joint.JointMin)
+            {
+                angle = joint.JointMin;
+            }
+            else if (angle > joint.JointMax)
+            {
+                angle = joint.JointMax;
+            }
+
+            angle =(int)(((angle-joint.JointMin) * 1.0 / (joint.JointMax - joint.JointMin)) * joint.TotalDegrees);
+                        
+            Console.WriteLine(" Adjusted: "+angle);
+
+            setServoAngle(joint.Channel, angle);
+        }
+
+        public void setServoAngle(int channel, int angle)
+        {
+            Command cmd = new Command(1, new byte[] { 0xFE, 0x03, 0x01, (byte)channel, (byte)angle }, false);
+            CommandSender.Send(cmd);
         }
 
         /// <summary>
