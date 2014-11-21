@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Kondo_Kinect" x:Class="Kondo_Kinect.ManualControlWindow"
         Title="Manual Control" Height="663" Width="619">
     <Window.Resources>
-        <local:MyConvertor x:Key="MyConvertor"/>
+        <local:StringToDoubleConvertor x:Key="MyConvertor"/>
     </Window.Resources>
     <Grid Margin="0,0,2,4">
         <Grid.ColumnDefinitions>

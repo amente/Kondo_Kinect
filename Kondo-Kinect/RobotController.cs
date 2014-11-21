@@ -23,6 +23,9 @@ namespace Kondo_Kinect
 
         private List<RobotJoint> robotJoints;
 
+        private bool isControlState = false;
+        private int frameCounter = 0;
+
         /// <summary>
         /// Describes a robot joint defined by three human joints
         /// </summary>
@@ -35,7 +38,7 @@ namespace Kondo_Kinect
             private int jointMin = 0;
             private int jointMax = 90;
 
-            private int totalDegrees = 90;
+            public static int MAX_DEGREE = 180;
 
 
             public RobotJoint(string name,JointType j1,JointType j2,JointType j3,int channel){
@@ -44,18 +47,6 @@ namespace Kondo_Kinect
                 this.j3 = j3;
                 this.name = name;
                 this.channel = channel;
-            }
-
-            public int TotalDegrees
-            {
-                get
-                {
-                    return totalDegrees;
-                }
-                set
-                {
-                    this.totalDegrees = value;
-                }
             }
 
             public int JointMin
@@ -177,31 +168,27 @@ namespace Kondo_Kinect
             // Right Arm
             RobotJoint rightArmJoint = new RobotJoint("Right Arm",JointType.ShoulderRight, JointType.ElbowRight,JointType.WristRight,1);
             rightArmJoint.JointMin = -25;
-            rightArmJoint.JointMax = 60;
-            rightArmJoint.TotalDegrees = 180;
+            rightArmJoint.JointMax = 60;           
             this.robotJoints.Add(rightArmJoint);
            
 
             // Right Sholder
             RobotJoint rightShoulderJoint = new RobotJoint("Right Sholder", JointType.SpineShoulder, JointType.ShoulderRight, JointType.ElbowRight, 2);
             rightShoulderJoint.JointMin = -25;
-            rightShoulderJoint.JointMax = 25;
-            rightShoulderJoint.TotalDegrees = 180;
+            rightShoulderJoint.JointMax = 25;           
             this.robotJoints.Add(rightShoulderJoint);
             
            
             // Left Arm
             RobotJoint leftArmJoint = new RobotJoint("Left Arm", JointType.ShoulderLeft, JointType.ElbowLeft, JointType.WristLeft, 16);
             leftArmJoint.JointMin = -60;
-            leftArmJoint.JointMax = 25;
-            leftArmJoint.TotalDegrees = 180;
+            leftArmJoint.JointMax = 25;            
             this.robotJoints.Add(leftArmJoint);
 
             // Left Sholder
             RobotJoint leftShoudlerJoint = new RobotJoint("Left Sholder", JointType.SpineShoulder, JointType.ShoulderLeft, JointType.ElbowLeft, 15);
             leftShoudlerJoint.JointMin = -25;
-            leftShoudlerJoint.JointMax = 25;
-            leftShoudlerJoint.TotalDegrees = 180;
+            leftShoudlerJoint.JointMax = 25;            
             this.robotJoints.Add(leftShoudlerJoint);           
             
         }
@@ -257,23 +244,59 @@ namespace Kondo_Kinect
                 DepthSpacePoint depthSpacePoint = kinectController.CoordinateMapper.MapCameraPointToDepthSpace(position);
                 jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
             }
+           frameCounter++;
+            if (frameCounter % 15 == 0)
+            {
+                if (body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed)
+                {
+                    isControlState = true;
+                }
+                else if ((body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Unknown) 
+                       || (body.HandRightState == HandState.Closed && body.HandLeftState == HandState.Unknown))
+                {
+                    // Don't change the value
+                }
+                else
+                {
+                    isControlState = false;
+                }
+            }
+            
 
-            //If both hands are closed, then calculate angles and send commands to the robot
-            if (body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed)
+            if (isControlState)
             {
 
                 foreach (RobotJoint robotJoint in robotJoints)
                 {
-                        int angle = Convert.ToInt16(calculateAngle(jointPoints[robotJoint.J1], jointPoints[robotJoint.J2], jointPoints[robotJoint.J3]));
-                        setServoAngle(robotJoint, angle);                          
+                    int angle = Convert.ToInt16(calculateAngle(jointPoints[robotJoint.J1], jointPoints[robotJoint.J2], jointPoints[robotJoint.J3]));
+                    setServoAngle(robotJoint, angle);
                 }
             }
+           
         }
 
+        /// <summary>
+        /// Checks if the body data indicates some control condition. For eg. Both arms are closed
+        /// </summary>
+        /// <param name="body"></param>
+        /// <returns></returns>
+        private bool isControlCondition(Body body)
+        {
+            //If both hands are closed, then calculate angles and send commands to the robot
+            return body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed;
+        }
+
+        /// <summary>
+        /// Given a RobotJoint and angle it sends a command to the respective channel on robot to set it
+        /// Before doing so, it first make some adjustments based on the joint parameters.
+        /// </summary>
+        /// <param name="joint"></param>
+        /// <param name="angle"></param>
         private void setServoAngle(RobotJoint joint,int angle){
             Console.Write(joint.Name + "  :");
             Console.Write(" Raw: " + angle);
             int channel = joint.Channel;
+            // Clamp the angle value to that of the minimum and maximum value for the joint we exepct from the kinect
             if (angle < joint.JointMin)
             {
                 angle = joint.JointMin;
@@ -282,14 +305,23 @@ namespace Kondo_Kinect
             {
                 angle = joint.JointMax;
             }
+            // Interpolate the value betweeen 0 and 180 degree.
+            angle =(int)(((angle-joint.JointMin) * 1.0 / (joint.JointMax - joint.JointMin)) * RobotJoint.MAX_DEGREE);
 
-            angle =(int)(((angle-joint.JointMin) * 1.0 / (joint.JointMax - joint.JointMin)) * joint.TotalDegrees);
+            // Switch left and right polarity.. apparently the servos on the robot are mounted the opposite to kinect
+            angle = RobotJoint.MAX_DEGREE - angle;
                         
             Console.WriteLine(" Adjusted: "+angle);
 
+            //Send the command with the adjusted angle
             setServoAngle(joint.Channel, angle);
         }
 
+        /// <summary>
+        /// Given a channel and angle, it sends a command for setting the servo angle
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="angle"></param>
         public void setServoAngle(int channel, int angle)
         {
             Command cmd = new Command(1, new byte[] { 0xFE, 0x03, 0x01, (byte)channel, (byte)angle }, false);

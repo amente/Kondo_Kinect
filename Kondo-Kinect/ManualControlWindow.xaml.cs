@@ -15,7 +15,7 @@ using System.Windows.Shapes;
 namespace Kondo_Kinect
 {
 
-    public class MyConvertor : IValueConverter
+    public class StringToDoubleConvertor : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {

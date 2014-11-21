@@ -184,6 +184,7 @@ namespace Kondo_Kinect
             serialPort.DataReceived += handler;           
             byte[] cmdBytes = cmd.Bytes;              
             serialPort.Write(cmdBytes, 0, cmdBytes.Length);
+            Console.WriteLine("Sent: " + BitConverter.ToString(cmdBytes));
             timer.Start();
             if (cmd.ExpectsAnswer)
             {
