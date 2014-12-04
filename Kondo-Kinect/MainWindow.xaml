@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Kondo++" Height="142" Width="380" Loaded="Window_Loaded" Closing="Window_Closing">
     <Grid>
-        <Button x:Name="btnOpenKinectControl" Content="Open Kinect Control" HorizontalAlignment="Left" Margin="211,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenKinectControl_Click" IsEnabled="False"/>
+        <Button x:Name="btnOpenKinectControl" Content="Open Kinect Control" HorizontalAlignment="Left" Margin="211,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenKinectControl_Click" IsEnabled="False" />
         <Button x:Name="btnOpenManualControl" Content="Open Manual Control" HorizontalAlignment="Left" Margin="20,71,0,0" VerticalAlignment="Top" Width="133" Click="btnOpenManualControl_Click" IsEnabled="False"/>
         <Label Content="Connect to Robot:" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
         <ComboBox x:Name="cmbSerialPort" HorizontalAlignment="Left" Margin="132,14,0,0" VerticalAlignment="Top" Width="65" DropDownOpened="cmbSerialPort_DropDownOpened"/>

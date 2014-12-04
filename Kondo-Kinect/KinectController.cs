@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Kinect;
 using System.Drawing;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows;
 
 namespace Kondo_Kinect
 {
@@ -12,7 +15,14 @@ namespace Kondo_Kinect
     /// A delegate for method called when a body is available from the sensor 
     /// </summary>
     /// <param name="body"></param>
-    public delegate void mainBodyAvailableHandler(Body body);
+    public delegate void mainBodyAvailableHandler(Body body,ImageSource colorImage);
+
+   
+    /// <summary>
+    /// Delegate called when face rotation data is available
+    /// </summary>
+    /// <param name="angle"></param>
+    public delegate void faceRotationAvailableHandler(double angle);
     
     /// <summary>
     // A delegate for method called when the status of the kinect sensor changes i.e When Turned ON or OFF
@@ -31,6 +41,11 @@ namespace Kondo_Kinect
         public event mainBodyAvailableHandler MainBodyAvailable;
 
         /// <summary>
+        /// Called when the face tracking rotation angle data is available
+        /// </summary>
+        public event faceRotationAvailableHandler FaceRotationAvailable;
+
+        /// <summary>
         /// Called when the status of the sensor changes
         /// </summary>
         public event sensorStatusChanged SensorStatusChanged;
@@ -46,11 +61,16 @@ namespace Kondo_Kinect
         private CoordinateMapper coordinateMapper = null;
 
         /// <summary>
-        /// Reader for body frames
+        /// Reader for body and color frames
         /// </summary>
-        private BodyFrameReader bodyFrameReader = null;
+        MultiSourceFrameReader reader;
 
 
+        /// <summary>
+        /// Bitmap to display
+        /// </summary>
+        private WriteableBitmap colorBitmap = null;
+        
         /// <summary>
         /// Array for the bodies tracked by the sensor
         /// </summary>
@@ -69,6 +89,10 @@ namespace Kondo_Kinect
         /// </summary>
         private Body mainBody = null;
 
+
+        //FaceFrameSource faceFrameSource = null;
+
+        //FaceFrameReader faceFrameReader = null;
        
         /// <summary>
         /// Width of display (depth space)
@@ -114,16 +138,23 @@ namespace Kondo_Kinect
             this.coordinateMapper = this.kinectSensor.CoordinateMapper;
 
             // Describes the display extents
-            FrameDescription frameDescription = this.kinectSensor.DepthFrameSource.FrameDescription;
+            FrameDescription frameDescription = this.kinectSensor.ColorFrameSource.FrameDescription;
 
             // Gets the size of the display space
             this.displayHeight = frameDescription.Height;
             this.displayWidth = frameDescription.Width;
 
-            // Opens the reader instance for body frames
-            this.bodyFrameReader = this.kinectSensor.BodyFrameSource.OpenReader();
+            // create the bitmap to display
+            this.colorBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
 
-            this.bodyFrameReader.FrameArrived += this.Reader_FrameArrived;
+            // Opens the reader instance for body and color frames
+            reader = this.kinectSensor.OpenMultiSourceFrameReader(FrameSourceTypes.Color | FrameSourceTypes.Body);
+            reader.MultiSourceFrameArrived += Reader_multiSourceFrameArrived;
+
+           // faceFrameSource = new FaceFrameSource(this.kinectSensor, 0, FaceFrameFeatures.RotationOrientation);
+            //faceFrameReader = faceFrameSource.OpenReader();
+            //faceFrameReader.FrameArrived += FaceReader_FrameArrived;
+          
 
             defineBones();
           
@@ -138,6 +169,82 @@ namespace Kondo_Kinect
 
         }
 
+        private void Reader_multiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
+        {
+            var reference = e.FrameReference.AcquireFrame();
+
+            // Color
+           using (var frame = reference.ColorFrameReference.AcquireFrame())
+            {
+                if (frame != null)
+                {
+
+                    FrameDescription colorFrameDescription = frame.FrameDescription;
+
+                    using (KinectBuffer colorBuffer = frame.LockRawImageBuffer())
+                    {
+                        this.colorBitmap.Lock();
+
+                        // verify data and write the new color frame data to the display bitmap
+                        if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
+                        {
+                            frame.CopyConvertedFrameDataToIntPtr(
+                                this.colorBitmap.BackBuffer,
+                                (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
+                                ColorImageFormat.Bgra);
+
+                            this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
+                        }
+                        this.colorBitmap.Unlock();                        
+                    }
+                    
+                }
+            }
+
+            bool dataReceived = false;
+
+            using (BodyFrame bodyFrame = reference.BodyFrameReference.AcquireFrame())
+            {
+                if (bodyFrame != null)
+                {
+                    if (this.bodies == null)
+                    {
+                        this.bodies = new Body[bodyFrame.BodyCount];
+                    }
+
+                    // "The first time GetAndRefreshBodyData is called, Kinect will allocate each Body in the array.
+                    // As long as those body objects are not disposed and not set to null in the array,
+                    // those body objects will be re-used." 
+                    bodyFrame.GetAndRefreshBodyData(this.bodies);
+
+                    dataReceived = true;
+                }
+
+            }
+
+            if (dataReceived)
+            {
+                foreach (Body body in this.bodies)
+                {
+                    if (body.IsTracked)
+                    {
+                        // We pick the first body in the array to be the main body
+                        mainBody = body;
+                        // Data has been recieved and main body detected notify listeners 
+                        //Track the face of the person
+                        //faceFrameSource.TrackingId = body.TrackingId;
+                        OnMainBodyAvailable(mainBody);
+
+
+                        break;
+                    }
+                }
+
+            }
+
+        }
+
+      
         private void defineBones()
         {
             // a bone defined as a line between two joints
@@ -192,56 +299,36 @@ namespace Kondo_Kinect
             }            
         }
 
-        /// <summary>
-        /// Handles the body frame data arriving from the sensor
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
-        private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
+        private double RadianToDegree(double angle)
         {
-            bool dataReceived = false;
-
-            using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame())
-            {
-                if (bodyFrame != null)
-                {
-                    if (this.bodies == null)
-                    {
-                        this.bodies = new Body[bodyFrame.BodyCount];
-                    }
-
-                    // "The first time GetAndRefreshBodyData is called, Kinect will allocate each Body in the array.
-                    // As long as those body objects are not disposed and not set to null in the array,
-                    // those body objects will be re-used." 
-                    bodyFrame.GetAndRefreshBodyData(this.bodies);                
-
-                    dataReceived = true;
-                }
-                 
-            }
-
-            if (dataReceived)
-            {
-                foreach (Body body in this.bodies)
-                {
-                    if (body.IsTracked)
-                    {
-                        // We pick the first body in the array to be the main body
-                        mainBody = body;
-                        // Data has been recieved and main body detected notify listeners 
-                        OnMainBodyAvailable(mainBody);                        
-                        break;
-                    }
-                }
-              
-            }
+            return angle * (180.0 / Math.PI);
         }
+
+        /*private void FaceReader_FrameArrived(object sender, FaceFrameArrivedEventArgs e)
+        {
+            using(FaceFrame faceFrame = e.FrameReference.AcquireFrame()){
+                if (faceFrame != null && faceFrame.FaceFrameResult!=null && faceFrame.IsTrackingIdValid)
+                {
+                    double faceRotationAngle = RadianToDegree(Math.Acos(faceFrame.FaceFrameResult.FaceRotationQuaternion.W) * 2);
+                    //Console.WriteLine("Face: " + faceRotationAngle);
+                    OnFaceRotationAvailable(faceRotationAngle);
+                }
+            }
+        }*/
 
         public List<Tuple<JointType, JointType>> Bones
         {
             get
             {
                 return this.bones;
+            }
+        }
+
+        private void OnFaceRotationAvailable(double angle)
+        {
+            if (FaceRotationAvailable != null)
+            {
+                FaceRotationAvailable(angle);
             }
         }
 
@@ -252,7 +339,7 @@ namespace Kondo_Kinect
         private void OnMainBodyAvailable(Body body)
         {
             if(MainBodyAvailable != null){
-                MainBodyAvailable(body);
+                MainBodyAvailable(body,this.colorBitmap);
             }
         }
 

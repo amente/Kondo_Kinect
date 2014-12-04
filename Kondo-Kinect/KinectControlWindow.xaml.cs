@@ -179,12 +179,17 @@ namespace Kondo_Kinect
         }
 
 
-        private void BodyAvailable(Body body)
+        private void BodyAvailable(Body body,ImageSource colorImage)
         {
             using (DrawingContext dc = this.drawingGroup.Open())
             {
+
+                
+                    
                 // Draw a transparent background to set the render size
-                dc.DrawRectangle(Brushes.Black, null, new Rect(0.0, 0.0, kinectController.DisplayWidth, kinectController.DisplayHeight));
+                //dc.DrawRectangle(Brushes.Black, null, new Rect(0.0, 0.0, kinectController.DisplayWidth, kinectController.DisplayHeight));
+
+                dc.DrawImage(colorImage,new Rect(0.0, 0.0, kinectController.DisplayWidth, kinectController.DisplayHeight));
                
                
                 Pen drawPen = this.bodyColors[0];
@@ -207,8 +212,8 @@ namespace Kondo_Kinect
                        position.Z = InferredZPositionClamp;
                    }
 
-                   DepthSpacePoint depthSpacePoint = kinectController.CoordinateMapper.MapCameraPointToDepthSpace(position);
-                   jointPoints[jointType] = new Point(depthSpacePoint.X, depthSpacePoint.Y);
+                   ColorSpacePoint colorSpacePoint = kinectController.CoordinateMapper.MapCameraPointToColorSpace(position);
+                   jointPoints[jointType] = new Point(colorSpacePoint.X, colorSpacePoint.Y);
                 }
 
                 this.DrawBody(joints, jointPoints, dc, drawPen);
@@ -219,7 +224,7 @@ namespace Kondo_Kinect
             }
 
              // prevent drawing outside of our render area
-             this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, kinectController.DisplayHeight, kinectController.DisplayWidth));
+             this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, kinectController.DisplayWidth, kinectController.DisplayHeight));
            
         }
 

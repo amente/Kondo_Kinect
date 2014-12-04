@@ -22,6 +22,7 @@ namespace Kondo_Kinect
     {
         private KinectControlWindow kinectControlWindow;
         private ManualControlWindow manualControlWindow;
+        //private RobotModelView robotModelView;
 
         private CommandSender commandSender;
         private int BaudRate = 9600;

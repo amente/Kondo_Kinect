@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Media3D;
 
 
@@ -26,6 +27,9 @@ namespace Kondo_Kinect
         private bool isControlState = false;
         private int frameCounter = 0;
 
+        public static int FACE_MIN = 43;
+        public static int FACE_MAX = 130;
+
         /// <summary>
         /// Describes a robot joint defined by three human joints
         /// </summary>
@@ -39,6 +43,8 @@ namespace Kondo_Kinect
             private int jointMax = 90;
 
             public static int MAX_DEGREE = 180;
+
+            
 
 
             public RobotJoint(string name,JointType j1,JointType j2,JointType j3,int channel){
@@ -167,7 +173,7 @@ namespace Kondo_Kinect
             
             // Right Arm
             RobotJoint rightArmJoint = new RobotJoint("Right Arm",JointType.ShoulderRight, JointType.ElbowRight,JointType.WristRight,1);
-            rightArmJoint.JointMin = -25;
+            rightArmJoint.JointMin = -40;
             rightArmJoint.JointMax = 60;           
             this.robotJoints.Add(rightArmJoint);
            
@@ -182,7 +188,7 @@ namespace Kondo_Kinect
             // Left Arm
             RobotJoint leftArmJoint = new RobotJoint("Left Arm", JointType.ShoulderLeft, JointType.ElbowLeft, JointType.WristLeft, 16);
             leftArmJoint.JointMin = -60;
-            leftArmJoint.JointMax = 25;            
+            leftArmJoint.JointMax = 35;            
             this.robotJoints.Add(leftArmJoint);
 
             // Left Sholder
@@ -203,6 +209,7 @@ namespace Kondo_Kinect
             if (!isTracking)
             {
                 this.kinectController.MainBodyAvailable += BodyAvailable;
+               // this.kinectController.FaceRotationAvailable += FaceRotationAvailable;
                 this.isTracking = true;
             }
 
@@ -224,7 +231,7 @@ namespace Kondo_Kinect
         /// This is called when a body data is available from the kinect interface
         /// </summary>
         /// <param name="body"></param>
-        private void BodyAvailable(Body body)
+        private void BodyAvailable(Body body,ImageSource colorImage)
         {
             IReadOnlyDictionary<JointType, Joint> joints = body.Joints;
 
@@ -271,8 +278,27 @@ namespace Kondo_Kinect
                     int angle = Convert.ToInt16(calculateAngle(jointPoints[robotJoint.J1], jointPoints[robotJoint.J2], jointPoints[robotJoint.J3]));
                     setServoAngle(robotJoint, angle);
                 }
-            }
+            }                     
            
+        }
+
+        private void FaceRotationAvailable(double angle)
+        {
+            if (isControlState)
+            {
+                if (angle < FACE_MIN)
+                {
+                    angle = FACE_MIN;
+                }
+                else if (angle > FACE_MAX)
+                {
+                    angle = FACE_MAX;
+                }
+                // Interpolate the value betweeen 0 and 180 degree.
+                int int_angle = (int)(((angle -FACE_MIN) * 1.0 / (FACE_MAX - FACE_MIN)) * 180);
+                Console.WriteLine("Raw: " + angle + " Adjusted: " + int_angle);
+                //setServoAngle(17, int_angle);
+            }
         }
 
         /// <summary>
